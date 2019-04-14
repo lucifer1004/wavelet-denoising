@@ -6,13 +6,12 @@ import matplotlib.pylab as plt
 
 # 获取近似基线
 def get_baseline(data, wavelets_name='sym8', level=5):
-    '''
-
+    """
     :param data: signal
     :param wavelets_name: wavelets name in PyWavelets, 'sym8' as default
     :param level: deconstruct level, 5 as default
     :return: baseline signal
-    '''
+    """
     # 创建小波对象
     wave = pywt.Wavelet(wavelets_name)
     # 分解
@@ -27,16 +26,22 @@ def get_baseline(data, wavelets_name='sym8', level=5):
 
 # 阈值收缩去噪法
 def thresholding(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
-    '''
-
+    """
     :param data: signal
     :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
     :param wavelets_name: wavelets name in PyWavelets, 'sym8' as default
     :param level: deconstruct level, 5 as default
     :return: processed data
-    '''
-    methods_dict = {'visushrink': VisuShrink, 'sureshrink': SureShrink, 'heursure': HeurSure, 'minmax': Minmax}
+    """
+
+    methods_dict = {
+        'visushrink': visu_shrink,
+        'sureshrink': sure_shrink,
+        'heursure': heur_sure,
+        'minmax': min_max
+    }
+
     # 创建小波对象
     wave = pywt.Wavelet(wavelets_name)
 
@@ -63,9 +68,8 @@ def thresholding(data, method='sureshrink', mode='soft', wavelets_name='sym8', l
 
 
 # 小波平移不变消噪
-def TI(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', level=5):
-    '''
-
+def translation_invariant_denoise(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', level=5):
+    """
     :param data: signal
     :param step: shift step, 100 as default
     :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'heursure' as default
@@ -73,18 +77,18 @@ def TI(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', lev
     :param wavelets_name: wavelets name in PyWavelets, 'sym5' as default
     :param level: deconstruct level, 5 as default
     :return: processed data
-    '''
+    """
     # 循环平移
-    num = math.ceil(len(data)/step)
-    final_data = [0]*len(data)
+    num = math.ceil(len(data) / step)
+    final_data = [0] * len(data)
     for i in range(num):
-        temp_data = right_shift(data, i*step)
+        temp_data = right_shift(data, i * step)
         temp_data = thresholding(temp_data, method=method, mode=mode, wavelets_name=wavelets_name, level=level)
         temp_data = temp_data.tolist()
-        temp_data = back_shift(temp_data, i*step)
-        final_data = list(map(lambda x, y: x+y, final_data, temp_data))
+        temp_data = back_shift(temp_data, i * step)
+        final_data = list(map(lambda x, y: x + y, final_data, temp_data))
 
-    final_data = list(map(lambda x: x/num, final_data))
+    final_data = list(map(lambda x: x / num, final_data))
 
     return final_data
 
@@ -117,7 +121,7 @@ def get_var(cD):
 
 
 # 求SureShrink法阈值
-def SureShrink(var, coeffs):
+def sure_shrink(var, coeffs):
     N = len(coeffs)
     sqr_coeffs = []
     for coeff in coeffs:
@@ -126,7 +130,7 @@ def SureShrink(var, coeffs):
     pos = 0
     r = 0
     for idx, sqr_coeff in enumerate(sqr_coeffs):
-        new_r = (N - 2 * (idx + 1) + (N - (idx + 1))*sqr_coeff + sum(sqr_coeffs[0:idx+1])) / N
+        new_r = (N - 2 * (idx + 1) + (N - (idx + 1)) * sqr_coeff + sum(sqr_coeffs[0:idx + 1])) / N
         if r == 0 or r > new_r:
             r = new_r
             pos = idx
@@ -135,28 +139,28 @@ def SureShrink(var, coeffs):
 
 
 # 求VisuShrink法阈值
-def VisuShrink(var, coeffs):
+def visu_shrink(var, coeffs):
     N = len(coeffs)
     thre = math.sqrt(var) * math.sqrt(2 * math.log(N))
     return thre
 
 
 # 求HeurSure法阈值
-def HeurSure(var, coeffs):
+def heur_sure(var, coeffs):
     N = len(coeffs)
     s = 0
     for coeff in coeffs:
         s += math.pow(coeff, 2)
     theta = (s - N) / N
-    miu = math.pow(math.log2(N), 3/2) / math.pow(N, 1/2)
+    miu = math.pow(math.log2(N), 3 / 2) / math.pow(N, 1 / 2)
     if theta < miu:
-        return VisuShrink(var, coeffs)
+        return visu_shrink(var, coeffs)
     else:
-        min(VisuShrink(var, coeffs), SureShrink(var, coeffs))
+        min(visu_shrink(var, coeffs), sure_shrink(var, coeffs))
 
 
 # 求Minmax法阈值
-def Minmax(var, coeffs):
+def min_max(var, coeffs):
     N = len(coeffs)
     if N > 32:
         return math.sqrt(var) * (0.3936 + 0.1829 * math.log2(N))
