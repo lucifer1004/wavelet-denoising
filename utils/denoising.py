@@ -25,6 +25,41 @@ def get_baseline(data, wavelets_name='sym8', level=5):
     return baseline
 
 
+# SWT阈值收缩去噪
+def swt_thresholding(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
+    '''
+    :param data: signal
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
+    :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
+    :param wavelets_name: wavelets name in PyWavelets, 'sym8' as default
+    :param level: deconstruct level, 5 as default
+    :return: processed data
+    '''
+    methods_dict = {'visushrink': VisuShrink, 'sureshrink': SureShrink, 'heursure': HeurSure, 'minmax': Minmax}
+    # 创建小波对象
+    wave = pywt.Wavelet(wavelets_name)
+
+    # 分解 阈值处理
+    l = len(data)
+    data = np.pad(data, (0, closest_two_power(l) - l), 'constant', constant_values=0)
+
+    coeffs = np.array(pywt.swt(data=data, wavelet=wave, level=level))
+    
+    for idx, coeff in enumerate(coeffs):
+        var = get_var(coeffs[idx][1])
+
+        # 求阈值thre
+        thre = methods_dict[method](var, coeffs[idx][1])
+        
+        # 处理cD
+        coeffs[idx][1] = pywt.threshold(coeffs[idx][1], thre, mode=mode)
+
+    # 重构信号
+    thresholded_data = pywt.iswt(coeffs, wavelet=wavelets_name)
+
+    return thresholded_data[:l]
+
+
 # 阈值收缩去噪法
 def thresholding(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     '''
@@ -115,6 +150,12 @@ def get_var(cD):
     var = abs_coeffs[pos] / 0.6745
     return var
 
+# 求不小于整数n的最小的2的方幂
+def closest_two_power(n):
+    rval = 1
+    while rval < n:
+        rval <<= 1
+    return rval
 
 # 求SureShrink法阈值
 def SureShrink(var, coeffs):
