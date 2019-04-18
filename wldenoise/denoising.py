@@ -3,7 +3,7 @@ import math
 import numpy as np
 from .sequence import right_shift, back_shift
 from .threshold import heur_sure, visu_shrink, sure_shrink, min_max
-from .utils import closest_two_power, get_var, predict_and_update
+from .utils import closest_two_power, get_var, predict_and_update, split
 
 
 # 获取近似基线
@@ -95,6 +95,7 @@ def ti(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', lev
 
     return final_data
 
+
 # SWT阈值收缩去噪
 def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     '''
@@ -131,49 +132,57 @@ def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
 
     return thresholded_data[:l]
 
-def split(arr):
-    e = arr[::2]
-    o = arr[1::2]
-    if arr.size % 2 == 0:
-        return e, o
-    else:
-        return e, np.pad(o, (0, 1), 'constant', constant_values=o[0])
-
-def _lwt(data, level=1):
-    res = split(data)
-#     coeffs = []
-    for i in range(level):
-        res = predict_and_update(res[0], res[1])
-#         coeffs.append(res)
-    return res
-
-def _ilwt(coeffs, level=1):
-    cA, cD = coeffs[0], coeffs[1]
-    for i in range(level):
-        cA = cA - cD * 0.5
-        cD = cD + cA
-    return np.row_stack((cA, cD)).transpose().reshape(len(cA) * 2)
-
 def lwt(data, method='heursure', mode='soft', level=1):
     '''
     :param data: signal
     :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
-    :param level: deconstruct level, 5 as default
+    :param level: deconstruct level, 1 as default
     :return: processed data
     '''
-    methods_dict = {'visushrink': visu_shrink, 'sureshrink': sure_shrink, 'heursure': heur_sure, 'minmax': min_max}
     
-    cA, cD = _lwt(data=data, level=level)
-    var = get_var(cD)
-    thre = methods_dict[method](var, cD)
-    cD = pywt.threshold(cD, thre, mode=mode)
-    cD = np.nan_to_num(cD)
+    def _lwt(data, level=1):
+        res = [data]
+        coeffs = []
+        for i in range(level):
+            res = predict_and_update(res[0])
+            coeffs.append(res)
+        return coeffs
+
+
+    def _ilwt(coeffs):
+        l = len(coeffs)
+        cA = coeffs[l - 1][0]
+        for i in range(l):
+            cD = coeffs[l - i - 1][1]
+            cA = cA - cD * 0.5
+            o = cA + cD
+            cA = np.row_stack((cA, o)).transpose().reshape(len(cA) * 2)
+        return cA
+
+    methods_dict = {'visushrink': visu_shrink, 'sureshrink': sure_shrink,
+                    'heursure': heur_sure, 'minmax': min_max}
+
+    l = len(data)
+    data = np.pad(data, (0, closest_two_power(l) - l),
+                  'constant', constant_values=0)
+    coeffs = _lwt(data=data, level=level)
+
+    for idx, coeff in enumerate(coeffs):
+        # 求方差
+        var = get_var(coeff[1])
+
+        # 求阈值thre
+        thre = methods_dict[method](var, coeff[1])
+
+        # 处理cD
+        coeffs[idx][1] = pywt.threshold(coeff[1], thre, mode=mode)
 
     # 重构信号
-    thresholded_data = _ilwt((cA, cD), level=level)[:len(data)]
+    thresholded_data = _ilwt(coeffs)[:l]
 
     return thresholded_data
+
 
 if __name__ == "__main__":
     pass

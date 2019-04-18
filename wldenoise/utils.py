@@ -20,7 +20,17 @@ def get_var(cD):
     return var
 
 
-def predict_and_update(e, o):
+def split(arr):
+    e = arr[::2]
+    o = arr[1::2]
+    if arr.size % 2 == 0:
+        return e, o
+    else:
+        return e, np.pad(o, (0, 1), 'constant', constant_values=o[-1])
+
+
+def predict_and_update(data):
+    e, o = split(data)
     cD = o - e
     cA = e + cD * 0.5
-    return cA, cD
+    return [cA, cD]

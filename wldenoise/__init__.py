@@ -7,4 +7,4 @@ __version__ = "0.1.0"
 __license__ = "MIT"
 __email__ = "wuzihua@pku.edu.cn"
 
-from .denoising import baseline, swt, dwt, ti
+from .denoising import baseline, swt, dwt, ti, lwt
