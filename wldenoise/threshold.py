@@ -37,7 +37,7 @@ def heur_sure(var, coeffs):
     if theta < miu:
         return visu_shrink(var, coeffs)
     else:
-        min(visu_shrink(var, coeffs), sure_shrink(var, coeffs))
+        return min(visu_shrink(var, coeffs), sure_shrink(var, coeffs))
 
 
 # 求Minmax法阈值

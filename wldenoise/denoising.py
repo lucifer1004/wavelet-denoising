@@ -3,7 +3,7 @@ import math
 import numpy as np
 from .sequence import right_shift, back_shift
 from .threshold import heur_sure, visu_shrink, sure_shrink, min_max
-from .utils import closest_two_power, get_var
+from .utils import closest_two_power, get_var, predict_and_update
 
 
 # 获取近似基线
@@ -130,6 +130,50 @@ def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     thresholded_data = pywt.iswt(coeffs, wavelet=wavelets_name)
 
     return thresholded_data[:l]
+
+def split(arr):
+    e = arr[::2]
+    o = arr[1::2]
+    if arr.size % 2 == 0:
+        return e, o
+    else:
+        return e, np.pad(o, (0, 1), 'constant', constant_values=o[0])
+
+def _lwt(data, level=1):
+    res = split(data)
+#     coeffs = []
+    for i in range(level):
+        res = predict_and_update(res[0], res[1])
+#         coeffs.append(res)
+    return res
+
+def _ilwt(coeffs, level=1):
+    cA, cD = coeffs[0], coeffs[1]
+    for i in range(level):
+        cA = cA - cD * 0.5
+        cD = cD + cA
+    return np.row_stack((cA, cD)).transpose().reshape(len(cA) * 2)
+
+def lwt(data, method='heursure', mode='soft', level=1):
+    '''
+    :param data: signal
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
+    :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
+    :param level: deconstruct level, 5 as default
+    :return: processed data
+    '''
+    methods_dict = {'visushrink': visu_shrink, 'sureshrink': sure_shrink, 'heursure': heur_sure, 'minmax': min_max}
+    
+    cA, cD = _lwt(data=data, level=level)
+    var = get_var(cD)
+    thre = methods_dict[method](var, cD)
+    cD = pywt.threshold(cD, thre, mode=mode)
+    cD = np.nan_to_num(cD)
+
+    # 重构信号
+    thresholded_data = _ilwt((cA, cD), level=level)[:len(data)]
+
+    return thresholded_data
 
 if __name__ == "__main__":
     pass

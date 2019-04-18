@@ -18,3 +18,9 @@ def get_var(cD):
     pos = math.ceil(len(abs_coeffs) / 2)
     var = abs_coeffs[pos] / 0.6745
     return var
+
+
+def predict_and_update(e, o):
+    cD = o - e
+    cA = e + cD * 0.5
+    return cA, cD
