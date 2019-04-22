@@ -2,9 +2,16 @@ import pywt
 import math
 import numpy as np
 from .sequence import right_shift, back_shift
-from .threshold import heur_sure, visu_shrink, sure_shrink, min_max
+from .threshold import heur_sure, visu_shrink, sure_shrink, mini_max
 from .utils import closest_two_power, get_var, predict_and_update, split
 
+
+methods_dict = {
+    'visushrink': visu_shrink,
+    'sureshrink': sure_shrink,
+    'heursure': heur_sure,
+    'minimax': mini_max
+}
 
 # 获取近似基线
 def baseline(data, wavelets_name='sym8', level=5):
@@ -30,19 +37,12 @@ def baseline(data, wavelets_name='sym8', level=5):
 def dwt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     """
     :param data: signal
-    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minimax'}, 'sureshrink' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
     :param wavelets_name: wavelets name in PyWavelets, 'sym8' as default
     :param level: deconstruct level, 5 as default
     :return: processed data
     """
-
-    methods_dict = {
-        'visushrink': visu_shrink,
-        'sureshrink': sure_shrink,
-        'heursure': heur_sure,
-        'minmax': min_max
-    }
 
     # 创建小波对象
     wave = pywt.Wavelet(wavelets_name)
@@ -74,7 +74,7 @@ def ti(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', lev
     """
     :param data: signal
     :param step: shift step, 100 as default
-    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'heursure' as default
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minimax'}, 'heursure' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
     :param wavelets_name: wavelets name in PyWavelets, 'sym5' as default
     :param level: deconstruct level, 5 as default
@@ -100,14 +100,13 @@ def ti(data, step=100, method='heursure', mode='soft', wavelets_name='sym5', lev
 def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     '''
     :param data: signal
-    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minimax'}, 'sureshrink' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
     :param wavelets_name: wavelets name in PyWavelets, 'sym8' as default
     :param level: deconstruct level, 5 as default
     :return: processed data
     '''
-    methods_dict = {'visushrink': visu_shrink,
-                    'sureshrink': sure_shrink, 'heursure': heur_sure, 'minmax': min_max}
+
     # 创建小波对象
     wave = pywt.Wavelet(wavelets_name)
 
@@ -121,7 +120,7 @@ def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
     for idx, coeff in enumerate(coeffs):
         var = get_var(coeffs[idx][1])
 
-       # 求本层阈值thre
+        # 求本层阈值thre
         thre = methods_dict[method](var, coeffs[idx][1])
 
         # 处理cD
@@ -135,7 +134,7 @@ def swt(data, method='sureshrink', mode='soft', wavelets_name='sym8', level=5):
 def lwt(data, method='heursure', mode='soft', level=1):
     '''
     :param data: signal
-    :param method: {'visushrink', 'sureshrink', 'heursure', 'minmax'}, 'sureshrink' as default
+    :param method: {'visushrink', 'sureshrink', 'heursure', 'minimax'}, 'sureshrink' as default
     :param mode: {'soft', 'hard', 'garotte', 'greater', 'less'}, 'soft' as default
     :param level: deconstruct level, 1 as default
     :return: processed data
@@ -159,9 +158,6 @@ def lwt(data, method='heursure', mode='soft', level=1):
             o = cA + cD
             cA = np.row_stack((cA, o)).transpose().reshape(len(cA) * 2)
         return cA
-
-    methods_dict = {'visushrink': visu_shrink, 'sureshrink': sure_shrink,
-                    'heursure': heur_sure, 'minmax': min_max}
 
     l = len(data)
     data = np.pad(data, (0, closest_two_power(l) - l),

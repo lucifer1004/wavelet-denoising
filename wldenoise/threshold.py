@@ -40,8 +40,8 @@ def heur_sure(var, coeffs):
         return min(visu_shrink(var, coeffs), sure_shrink(var, coeffs))
 
 
-# 求Minmax法阈值
-def min_max(var, coeffs):
+# 求Minimax法阈值
+def mini_max(var, coeffs):
     N = len(coeffs)
     if N > 32:
         return math.sqrt(var) * (0.3936 + 0.1829 * math.log2(N))
